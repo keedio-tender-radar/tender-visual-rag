@@ -56,3 +56,35 @@ def test_ask_with_document_text():
     assert body["backend"] == "fake"
     assert "solvencia" in (body["answer"] or "").lower()
     assert body["sources"]
+
+
+def test_ask_llm_synthesis(monkeypatch):
+    import httpx
+
+    from tender_visual_rag import answer as answer_mod
+    from tender_visual_rag.config import settings
+
+    monkeypatch.setattr(settings, "openrouter_api_key", "k")
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert req.url.path.endswith("/chat/completions")
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "Exige 3 proyectos similares."}}]},
+        )
+
+    monkeypatch.setattr(
+        answer_mod,
+        "_client",
+        lambda: httpx.Client(transport=httpx.MockTransport(handler), base_url="https://openrouter.ai/api/v1"),
+    )
+    body = client.post(
+        "/ask",
+        json={
+            "question": "solvencia",
+            "tender_id": "EXP-LLM",
+            "document_text": "Se exige solvencia tecnica con tres proyectos similares.",
+        },
+    ).json()
+    assert body["backend"] == "fake+llm"
+    assert "3 proyectos" in body["answer"]

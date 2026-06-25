@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
 
+from tender_visual_rag import answer as answer_mod
 from tender_visual_rag.config import settings
 from tender_visual_rag.schemas import (
     AskRequest,
@@ -73,7 +74,20 @@ def ask(payload: AskRequest) -> AskResponse:
         hits = backend.query(payload.tender_id, payload.question, payload.top_k)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(502, f"Consulta fallida: {exc}") from exc
+
+    # Respuesta: síntesis con LLM fundamentada en los fragmentos; si no hay clave/falla, extractiva.
+    backend_label = backend.name
     answer = hits[0].content[:800] if hits and hits[0].content else None
+    contexts = [h.content for h in hits if h.content]
+    if settings.openrouter_api_key and contexts:
+        try:
+            generated = answer_mod.synthesize(payload.question, contexts)
+            if generated:
+                answer = generated
+                backend_label = f"{backend.name}+llm"
+        except Exception:  # noqa: BLE001 — si el LLM falla, nos quedamos con la extractiva
+            pass
+
     return AskResponse(
         tender_id=payload.tender_id,
         question=payload.question,
@@ -81,5 +95,5 @@ def ask(payload: AskRequest) -> AskResponse:
         sources=[
             AskSource(page=h.page, ref=h.ref, content=(h.content or "")[:600]) for h in hits
         ],
-        backend=backend.name,
+        backend=backend_label,
     )

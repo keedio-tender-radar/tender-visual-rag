@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     pixelrag_model: str = "Qwen3-VL-Embedding-2B"
     pixelrag_gpu_ids: str = ""  # vacío = CPU
 
+    # Síntesis de respuesta con LLM (OpenRouter). Vacío = respuesta extractiva (top fragmento).
+    openrouter_api_key: str = ""
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
