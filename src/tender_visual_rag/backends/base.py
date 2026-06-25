@@ -16,6 +16,7 @@ class Hit:
     page: int
     score: float
     ref: str | None = None
+    content: str | None = None
 
 
 class VisualRagBackend(ABC):

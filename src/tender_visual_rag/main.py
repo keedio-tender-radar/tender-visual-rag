@@ -6,6 +6,9 @@ from fastapi import FastAPI, HTTPException
 
 from tender_visual_rag.config import settings
 from tender_visual_rag.schemas import (
+    AskRequest,
+    AskResponse,
+    AskSource,
     Hit,
     IndexRequest,
     IndexResponse,
@@ -51,5 +54,32 @@ def query(payload: QueryRequest) -> QueryResponse:
         tender_id=payload.tender_id,
         query=payload.text,
         hits=[Hit(tender_id=h.tender_id, page=h.page, score=h.score, ref=h.ref) for h in hits],
+        backend=backend.name,
+    )
+
+
+@app.post("/ask", response_model=AskResponse)
+def ask(payload: AskRequest) -> AskResponse:
+    """Pregunta por expediente (contrato de la plataforma).
+
+    Si llega `document_text`, indiza al vuelo (permite responder sin pre-ingesta); luego recupera
+    las páginas más relevantes y compone una respuesta extractiva. Con el backend real
+    (PixelRAG/Qwen3-VL) la recuperación es visual y la respuesta la genera el VLM.
+    """
+    backend = get_backend()
+    try:
+        if payload.document_text:
+            backend.index(payload.tender_id, [{"text": payload.document_text}])
+        hits = backend.query(payload.tender_id, payload.question, payload.top_k)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"Consulta fallida: {exc}") from exc
+    answer = hits[0].content[:800] if hits and hits[0].content else None
+    return AskResponse(
+        tender_id=payload.tender_id,
+        question=payload.question,
+        answer=answer,
+        sources=[
+            AskSource(page=h.page, ref=h.ref, content=(h.content or "")[:600]) for h in hits
+        ],
         backend=backend.name,
     )

@@ -44,6 +44,8 @@ class FakeBackend(VisualRagBackend):
             overlap = len(qwords & _words(page_text))
             if overlap:
                 score = overlap / (len(qwords) or 1)
-                scored.append(Hit(tender_id=tender_id, page=page_no, score=score, ref=ref))
+                scored.append(
+                    Hit(tender_id=tender_id, page=page_no, score=score, ref=ref, content=page_text)
+                )
         scored.sort(key=lambda h: (-h.score, h.page))
         return scored[:n_docs]

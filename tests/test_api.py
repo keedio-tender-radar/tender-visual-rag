@@ -40,3 +40,19 @@ def test_index_requires_documents():
 def test_query_unknown_tender_returns_empty():
     body = client.post("/query", json={"tender_id": "nope", "text": "x"}).json()
     assert body["hits"] == []
+
+
+def test_ask_with_document_text():
+    r = client.post(
+        "/ask",
+        json={
+            "question": "solvencia tecnica",
+            "tender_id": "EXP-9",
+            "document_text": "Objeto del contrato.\nSe exige solvencia tecnica con tres proyectos.",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["backend"] == "fake"
+    assert "solvencia" in (body["answer"] or "").lower()
+    assert body["sources"]

@@ -41,3 +41,26 @@ class QueryResponse(BaseModel):
     query: str
     hits: list[Hit] = Field(default_factory=list)
     backend: str
+
+
+class AskRequest(BaseModel):
+    """Pregunta por expediente. `document_text` permite indizar al vuelo (sin pre-ingesta)."""
+
+    question: str
+    tender_id: str
+    top_k: int = 5
+    document_text: str | None = None
+
+
+class AskSource(BaseModel):
+    page: int | None = None
+    ref: str | None = None
+    content: str | None = None
+
+
+class AskResponse(BaseModel):
+    tender_id: str
+    question: str
+    answer: str | None = None
+    sources: list[AskSource] = Field(default_factory=list)
+    backend: str
